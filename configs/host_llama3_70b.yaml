@@ -1,0 +1,16 @@
+# Host-generator sweep: Llama-3-70B host in 8-bit, conformal coverage under DIPPER.
+extends: full.yaml
+
+paths:
+  cache_dir: cache/host_llama3_70b
+  results_dir: results/host_llama3_70b
+
+host:
+  type: hf
+  model: meta-llama/Meta-Llama-3-70B
+  dtype: float16
+  quantization: int8
+  max_excerpt_tokens: 1024
+
+watermarks: null
+channels: [dipper]

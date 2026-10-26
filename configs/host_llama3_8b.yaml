@@ -1,0 +1,16 @@
+# Host-generator sweep: Llama-3-8B host, conformal coverage under DIPPER.
+extends: full.yaml
+
+paths:
+  cache_dir: cache/host_llama3_8b
+  results_dir: results/host_llama3_8b
+
+host:
+  type: hf
+  model: meta-llama/Meta-Llama-3-8B
+  dtype: float16
+  device: null
+  max_excerpt_tokens: 1024
+
+watermarks: null
+channels: [dipper]

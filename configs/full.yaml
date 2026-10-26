@@ -1,0 +1,106 @@
+# Full-scale settings.
+
+paths:
+  sections: data/edgar/sections.jsonl
+  raw_dir: data/edgar/raw
+  units: data/edgar/units.jsonl
+  cache_dir: cache/full
+  results_dir: results/full
+
+data:                                          # EDGAR sample and length tokenisation
+  n_filings: 4200
+  years: [2020, 2025]
+  forms: ["10-K", "10-Q"]
+  max_per_company: 2
+  sample_seed: 0
+  spacy_model: en_core_web_sm
+  length_tokenizer: meta-llama/Meta-Llama-3-8B
+  length_tokenizer_revision: null
+  null_only_sections: [transcript]             # section names of records used only in the null pools
+
+alpha: 0.01                                    # false-positive bound
+beta: 0.05                                     # one minus the coverage floor
+gamma_budget: 0.02                             # per-token distortion budget for the horizon
+unit_table_etas: {light: 0.8, moderate: 0.5, aggressive: 0.2}   # edit contraction values for the unit fractions
+
+host:                                          # host generator
+  type: hf
+  model: facebook/opt-6.7b
+  dtype: float16
+  device: null
+  max_excerpt_tokens: 1024                     # excerpt tokens kept in the prompt
+decoding:
+  temperature: 1.0
+  top_p: 0.95
+
+L: 100                                         # output length
+lengths: [100]
+length_sweep: [25, 50, 100, 200, 400, 800]
+sweep_channels: [dipper]                       # edit channels of the length sweep
+
+seeds: [0, 1, 2, 3, 4]
+n_positive: 500
+n_negative: 500
+edit_negatives: false                          # pass third-party text through the edit channel for the watermark tests
+cache_channels: [dipper, gpt4o, recursive, adaptive]   # channels whose outputs are cached on disk
+
+splits:
+  split_seed: 12345                            # filing-level split
+  prompt_fraction: 0.5
+  calibration_fraction: 0.5
+  calibration_seed: 777                        # calibration windows, fixed across seeds
+  calibration_size: 2000
+  log_seed: 999                                # output log, fixed across seeds
+  log_size: 5000
+
+watermarks:                                    # green fraction, logit bias, key
+  greenlist: {scheme: greenlist, key: 15485863, green_fraction: 0.5, bias: 2.0}
+  unigram:   {scheme: unigram,   key: 15485863, green_fraction: 0.5, bias: 2.0}
+
+channels: [none, light, dipper, gpt4o, recursive]
+edits:
+  light:
+    spacy_model: en_core_web_sm
+    entity_labels: [PERSON]                    # entity types replaced by the mask
+    mask: "[REDACTED]"
+    disclaimer: "Disclaimer: This material is for informational purposes only and does not constitute investment advice."
+  dipper:
+    model: kalpeshk2011/dipper-paraphraser-xxl
+    tokenizer: google/t5-v1_1-xxl
+    revision: null
+    lex: 60
+    order: 60
+    sent_interval: 3                           # sentences per paraphrase window
+    top_p: 0.75
+    max_length: 512
+    dtype: bfloat16
+  gpt4o:
+    model: gpt-4o-2024-08-06
+    temperature: 1.0
+  adaptive:                                    # embedding-targeted editor
+    base: dipper                               # channel that draws the candidates
+    candidates: 8                              # candidates per output; the one least similar to the source is kept
+
+retrieval:
+  encoder: {type: hf, model: intfloat/e5-large-v2, prefix: "query: ", batch_size: 32, max_length: 512, revision: null}
+  index:
+    score: hybrid                              # hybrid | embed | ngram | exact_ngram | lcs
+    embed_weight: 0.7
+    ngram_weight: 0.3
+    ngram_n: 5
+    bm25_k1: 1.5
+    bm25_b: 0.75
+  ablation_variants: [exact_ngram, lcs, embed, hybrid]
+  ablation_channel: gpt4o
+  calibration_sizes: [100, 500, 2000]
+  adaptive_variants: [embed, hybrid]           # index scores evaluated against the adaptive editor
+
+calibration_eval:
+  n_null_full: 5000                            # null windows per seed for the calibration table
+strata:
+  boilerplate: {n: 5, threshold: 0.3, min_filings: 2}   # cross-filing n-gram duplication rule
+hard_negatives:
+  generator: {type: hf, model: meta-llama/Meta-Llama-3-8B, dtype: float16}
+  n_calibration: 500
+  n_test: 500
+  null_only_fraction: 0.5                      # share of hard negatives drawn from null-only sections when present

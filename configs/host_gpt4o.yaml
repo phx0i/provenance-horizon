@@ -1,0 +1,18 @@
+# Host-generator sweep: GPT-4o host, conformal coverage under DIPPER.
+extends: full.yaml
+
+paths:
+  cache_dir: cache/host_gpt4o
+  results_dir: results/host_gpt4o
+
+host:
+  type: openai
+  model: gpt-4o-2024-08-06
+  tokenizer: meta-llama/Meta-Llama-3-8B        # tokenizer for output lengths, windows and prompt truncation
+  max_excerpt_tokens: 1024
+decoding:
+  temperature: 0.7
+  top_p: 0.9
+
+watermarks: null
+channels: [dipper]
